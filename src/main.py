@@ -24,7 +24,7 @@ _SRC_DIR = Path(__file__).resolve().parent
 if str(_SRC_DIR) not in sys.path:
     sys.path.insert(0, str(_SRC_DIR))
 
-from core.config import setup_api_key
+from core.config import get_openrouter_api_key, setup_api_key
 
 
 async def part2_guardrails():
@@ -53,9 +53,16 @@ async def part2_guardrails():
 
 async def part3_assignment_suite():
     """Checkpoint 3: defense suite → outputs/results.json."""
+    key = get_openrouter_api_key()
+    if not key or key in {"sk-or-...", "sk-or-v1-..."}:
+        raise SystemExit("CP3 cần OPENROUTER_API_KEY cho Blue. Điền khóa thật trong .env.")
+
     print("\n" + "=" * 60)
     print("CHECKPOINT 3: Assignment suite → outputs/*.json")
     print("=" * 60)
+
+    from jsonschema import ValidationError
+    from openai import OpenAIError
 
     from assignment.pipeline import (
         build_production_plugins,
@@ -71,14 +78,16 @@ async def part3_assignment_suite():
         print("Suite finished.")
         print("Wrote outputs under repo outputs/")
         return result
-    except NotImplementedError as e:
-        print(
-            "Chưa xong Checkpoint 3 (src/assignment/pipeline.py). "
-            "Hoàn thành rồi chạy lại từ gốc repo:\n"
-            "  python src/main.py --part 3"
-        )
-        print(f"Detail: {e}")
-        return None
+    except OpenAIError as error:
+        status = getattr(error, "status_code", None)
+        detail = f"HTTP {status}" if status is not None else type(error).__name__
+        raise SystemExit(
+            f"CP3 không gọi được OpenRouter ({detail}). Kiểm tra khóa, hạn mức và kết nối."
+        ) from None
+    except ValidationError as error:
+        raise SystemExit(f"CP3 trả dữ liệu sai schema tại {error.json_path}.") from None
+    except (OSError, RuntimeError) as error:
+        raise SystemExit(f"CP3 thất bại. {error}") from None
 
 
 async def part4_attacks():
@@ -134,10 +143,10 @@ async def part4_attacks():
 
 
 async def main(parts=None):
-    setup_api_key()
-
     if parts is None:
         parts = [2, 3, 4]  # Core: CP2 → CP3 → CP4
+    if 4 in parts:
+        setup_api_key()
 
     for part in parts:
         if part == 2:

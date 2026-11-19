@@ -6,6 +6,47 @@
 
 ---
 
+## Bài cá nhân
+
+**Đặng Long Nhật · 2A202603483 · L3A**
+
+| Checkpoint | Trạng thái |
+| --- | --- |
+| CP1 | Đã cài `requirements.txt` và kiểm thử bằng Python 3.11.18. Nhập khóa API trên máy chạy live. |
+| CP2 | Đã chạy demo offline. Kiểm thử bộ lọc input, output và 10 mẫu PII của lab đều đạt. |
+| CP3 | Pipeline đã qua kiểm thử với phản hồi HTTP mô phỏng. Kết quả gồm 5 ca hợp lệ, 7 ca phòng thủ bị chặn, 3 ca biên và 10/15 lượt qua cổng rate limit. Chạy live với OpenRouter để sinh `outputs/results.json`, `audit_log.json` và `metrics.json`. |
+| CP4 | Chưa có bằng chứng `outputs/attack_results.json`. |
+| CP5 | Smoke test đạt 39/39. Public test offline đạt 6, bỏ qua 4 kiểm tra cần `results.json`. Cả 4 kiểm tra này đã qua với kết quả CP3 mô phỏng trong thư mục tạm. Grader hiện báo thiếu hai artifact bắt buộc. |
+
+Blue dùng OpenAI SDK để gọi model OpenRouter cố định. Callback ghi lớp đã chặn hoặc che dữ liệu. Audit log ghép theo request ID và lưu bản đã che PII. Phép đo rate limit chạy một đợt riêng qua các cổng input để thời gian trả lời của model không làm lệch cửa sổ 60 giây. `is_egress_allowed()` kiểm tra payload và đích HTTPS cho thao tác gửi dữ liệu.
+
+### Chạy lại trên PowerShell
+
+Tại gốc repo, tạo `.venv` bằng `py -3.11 -m venv .venv` nếu chưa có.
+
+~~~powershell
+$day11Py = '.\.venv\Scripts\python.exe'
+& $day11Py -m pip install -r requirements.txt
+& $day11Py -m pytest tests/smoke tests/public/test_lab_contracts.py -q
+& $day11Py src/main.py --part 2
+~~~
+
+Tạo `.env` từ `.env.example` nếu chưa có. Điền `OPENROUTER_API_KEY` cho Blue. Với OpenAI, dùng `RED_TEAM_PROVIDER=openai` và `OPENAI_MODEL=gpt-4o-mini`, rồi điền `OPENAI_API_KEY` trên máy. Giữ `.env` ngoài Git.
+
+~~~powershell
+& $day11Py src/main.py --part 3
+& $day11Py -m pytest tests/public -q
+& $day11Py scripts/grade.py --submission-dir . --out outputs/grade_report.json
+git diff --check
+git check-ignore -- .env
+~~~
+
+Trước khi commit, kiểm tra thời gian ghi ba file CP3 và đọc `results_schema.ok`, `public_tests.returncode` cùng `packaging.details.attack_results` trong báo cáo chấm. Dùng tên repo nộp `K5-L3A-DAY11-DangLongNhat-2A202603483-Guardrails-HITL-Responsible-AI` theo [quy ước Lab](SUBMISSION.md).
+
+Dùng `git diff --name-only` để rà các file cần stage. Stage cả `src/core/openai_runtime.py` vì pipeline lấy quyết định của guardrail qua runtime này.
+
+---
+
 ## Thời lượng
 
 | Phần | Thời gian |
